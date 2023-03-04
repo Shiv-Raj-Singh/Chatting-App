@@ -5,14 +5,13 @@ import cors from 'cors';
 
 import './database.js';
 import  {globalError }  from './middleware/globalError.js';
-// import router from './route.js';
+import router from './route.js';
 const app = express()
 
 import http from 'http'
 var server = http.createServer(app);
 
 import { Server } from 'socket.io';
-import register , {login}  from './controller/user.js';
 // const io = new Server(server);
 const io = new Server(server, {
     cors: {
@@ -41,14 +40,7 @@ io.on("connection", (socket) => {
   });
 
 
-// app.use('/' , router)
-
-app.get('/' , (req,res)=>{
-  res.send('this our Chatting App server ')
-})
-app.post('/register' , register)
-app.post('/login' , login)
-
+app.use('/' , router)
 app.use(globalError)
 
 
