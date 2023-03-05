@@ -27,8 +27,8 @@ const login = catchAsync(async (req,res, next)=>{
     if(cacheData){
         // const validPass = await bcrypt.compare(JSON.parse(cacheData).password , userData.password)
         const validPass = JSON.parse(cacheData).password==userData.password
-        if(!validPass) return (next(new AppError('Incorrect Password From Cache Memory!' , 400)))
-        else return  res.status(201).json({ status : true ,message : 'login Succesfully from Cache Data', data : JSON.parse(cacheData)})
+        if(!validPass) return (next(new AppError('Incorrect Password ' , 400)))
+        else return  res.status(201).json({ status : true ,message : 'login Successfully', data : JSON.parse(cacheData)})
     }
 
     // console.log(cacheData , 'data from Chache');
@@ -42,7 +42,7 @@ const login = catchAsync(async (req,res, next)=>{
     if(!validPass) return (next(new AppError('Incorrect Password !' , 400)))
     redis.set(`${user.phone}`, JSON.stringify(user))
 
-    res.status(201).json({ status : true , message : 'login Succesfully Database' , data : user})
+    res.status(201).json({ status : true , message : 'login Successfully Database' , data : user})
 })
 
 

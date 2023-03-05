@@ -13,12 +13,13 @@ var server = http.createServer(app);
 
 import { Server } from 'socket.io';
 // const io = new Server(server);
-// const io = new Server(server, {
-//     cors: {
-//       // origin: "http://localhost:3000",
-//       methods: ["GET", "POST"]
-//     }
-//   });
+const io = new Server(server, {
+    cors: {
+      // origin: "http://localhost:3000",
+      origin: "https://mangal-chat-app.netlify.app",
+      methods: ["GET", "POST"]
+    }
+  });
 
 app.use(express.json())
 app.use(cors())
