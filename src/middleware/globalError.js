@@ -5,6 +5,10 @@ export function globalError(err, req, res, next){
     err.statusCode = err.statusCode || 500
     if(err.isJoi == true){
         err.message = err.message 
+        const [details] = err.details
+        if(details.type =='string.pattern.base'){
+            err.message =  `${details.path} Should be Valid !`
+        }
         err.statusCode = 400
     }
     // console.log(err);
