@@ -74,8 +74,8 @@ host: "smtp.ethereal.email",
 port: 587,
 secure: false, // true for 465, false for other ports
 auth: {
-    user: 'keely73@ethereal.email',
-    pass: 'XJMj76SguagBDnXtAn'
+    user: 'mt932747@gmail.com',
+    pass: 9588875551
 },
 });
   
