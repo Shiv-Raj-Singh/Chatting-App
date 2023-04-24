@@ -66,43 +66,47 @@ const forgetPassword = catchAsync( async (req,res,next)=>{
 // Generate test SMTP service account from ethereal.email
 // Only needed if you don't have a real mail account for testing
 
-
 const testAccount = await nodemailer.createTestAccount();
 // create reusable transporter object using the default SMTP transport
 const transporter = nodemailer.createTransport({
-host: "smtp.ethereal.email",
-port: 587,
-secure: false, // true for 465, false for other ports
+service : 'gmail' ,
 auth: {
-    user: 'mt932747@gmail.com',
-    pass: 9588875551
+    user: `${process.env.email}`,
+    pass: `${process.env.pass}`
 },
 });
   
 
 var mailOptions = {
-    from: 'mt932747@gmail.com',
-    to: 'shiv9627347143@gmail.com',
+    from: `${process.env.email}`,
+    to: `${userData.email}`,
+    // to: `mt932747@gmail.com`,
+    // to: `shiv9627347143@gmail.com`,
+    // to: `albertsaurabhkumar@gmail.com`,
     subject: 'Reset Your Password',
-    text: `https://chat-app-frontend-sigma.vercel.app/reset-password/${user._id}`
+    html : '<a href="`https://chat-app-frontend-sigma.vercel.app/reset-password/${user._id}`">Click Here For Reset Your Password ! </a>'
+
   };
   
   await transporter.sendMail(mailOptions, function(error, info){
     if (error) {
-      console.log(error);
+      console.log(error.message);
     } else {
       console.log('Email sent: ' + info);
-      res.send(info)
+     
+    res.status(200).json({ status : true , message : 'Email Sent Successfully See Your Email Account !' , data : info})
     }
   });
     // console.log(userData);
 
 })
 
+
+
 const resetPassword = catchAsync(async (req,res,next)=>{
     const id = req.params.id
     const userData = await validUser.validateAsync(req.body)
-    console.log(id , userData);
+    // console.log(id , userData);
     if(userData.password !== userData.cPassword){
         return next(new AppError('Both Password are Not Match !')) 
     }
