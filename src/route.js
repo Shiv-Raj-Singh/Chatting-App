@@ -1,5 +1,6 @@
 import { Router } from "express";
 import register, {
+  fetchNews,
   forgetPassword,
   isValidToken,
   login,
@@ -18,6 +19,8 @@ router.get("/", (req, res) => {
   });
 });
 
+// get homepage
+router.get("/home", fetchNews);
 router.post("/register", register);
 router.post("/login", login);
 router.post("/forgotPassword", forgetPassword);

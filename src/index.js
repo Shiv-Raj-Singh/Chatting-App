@@ -20,9 +20,9 @@ const corsPolicyFields = {
   allowedHeaders: ["Content-Type", "Authorization"], // Allowed headers
   credentials: true, // Allow cookies to be sent with requests
 };
+app.use(cors(corsPolicyFields));
 
 app.use(express.json());
-app.use(cors(corsPolicyFields));
 
 import { Server } from "socket.io";
 const io = new Server(server, {

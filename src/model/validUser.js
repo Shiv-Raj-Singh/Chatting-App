@@ -12,6 +12,7 @@ const validUser = Joi.object({
     .max(10)
     .regex(/^[6-9]{1}[0-9]{9}$/),
   email: Joi.string().required().trim().email(),
+  gender: Joi.string().required().trim(),
   password: Joi.string().required()
     .trim()
     .min(8)

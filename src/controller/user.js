@@ -3,6 +3,7 @@ import userModel from "../model/register.js";
 import validUser from "../model/validUser.js";
 import catchAsync from "./catchAsync.js";
 import AppError from "../middleware/AppError.js";
+import axios from "axios";
 
 // Nodemailer Provide the system to send the email from Nodejs
 import nodemailer from "nodemailer";
@@ -221,5 +222,25 @@ const resetPassword = catchAsync(async (req, res, next) => {
   });
 });
 
+// pull latest news
+const fetchNews = catchAsync(async (req, res, next) => {
+  const { q, language } = req.query || {};
+  const response = await axios.get("https://newsapi.org/v2/everything", {
+    params: {
+      apiKey: "127c17c8a5f643aab718e5985a67a4fb",
+      q: q || "latest",
+      language: language || "en",
+      sortBy: "relevancy",
+    },
+  });
+  // res.json(response.data);
+  console.log("Response from fetchNews : ", JSON.stringify(response.data));
+  res.status(200).json({
+    status: true,
+    data: response.data,
+    message: "News Fetched Successfully",
+  });
+});
+
 export default register;
-export { login, forgetPassword, resetPassword, isValidToken };
+export { login, forgetPassword, resetPassword, isValidToken, fetchNews };

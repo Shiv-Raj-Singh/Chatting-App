@@ -22,6 +22,13 @@ const userSchema = new Schema(
       unique: true,
       trim: true,
     },
+    gender: {
+      type: String,
+      // required: true,
+      enum : ['male', 'female', 'other'],
+      default: 'male',
+      trim: true,
+    },
     password: {
       type: String,
       // required: true,
