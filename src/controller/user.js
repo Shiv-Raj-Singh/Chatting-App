@@ -9,33 +9,6 @@ import axios from "axios";
 import nodemailer from "nodemailer";
 import { generateJwtToken, verifyJwtToken } from "../utility.js";
 
-// const twilio = require('twilio');
-import twilio from "twilio";
-
-// Replace these with your Twilio credentials
-const accountSid = process.env.ACCOUNT_SID; // Replace with your Account SID
-const authToken = process.env.ACCOUNT_TOKEN; // Replace with your Auth Token
-
-// Create a Twilio client
-const client = new twilio(accountSid, authToken);
-
-// Send SMS function
-const sendSMS = async (to, body) => {
-  try {
-    const message = await client.messages.create({
-      body: body, // Message text
-      to: to, // Recipient's phone number
-      from: process.env.PHONE, // Your Twilio phone number (with country code)
-    });
-
-    console.log("Message sent:", message.sid);
-    return message;
-  } catch (error) {
-    console.error("Error sending message:", error);
-    throw error;
-  }
-};
-
 const register = catchAsync(async (req, res, next) => {
   console.log(req.body);
   const userData = await validUser.validateAsync(req.body);
