@@ -73,8 +73,15 @@ io.on("connection", (socket) => {
   });
 
   // ── JOIN ROOM ─────────────────────────────────────────────
-  socket.on("joinRoom", ({ roomId }) => {
+  socket.on("joinRoom", async ({ roomId }) => {
     if (!socket.userId) return;
+    try {
+      const room = await Room.findById(roomId).lean();
+      if (room?.blockedUsers?.some((id) => id.toString() === socket.userId)) {
+        socket.emit("joinError", { roomId, message: "You have been removed from this room" });
+        return;
+      }
+    } catch (_) {}
     socket.join(roomId);
     socket.to(roomId).emit("userJoined", { userId: socket.userId, name: socket.userName, roomId });
     socket.emit("roomJoined", { roomId });
@@ -102,6 +109,32 @@ io.on("connection", (socket) => {
       });
     } catch (err) {
       socket.emit("messageError", { message: "Failed to send message" });
+    }
+  });
+
+  // ── NEW ROOM (broadcast to all others) ───────────────────
+  socket.on("newRoom", (room) => {
+    socket.broadcast.emit("roomCreated", room);
+  });
+
+  // ── DELETE ROOM (broadcast to everyone) ──────────────────
+  socket.on("deleteRoom", ({ roomId }) => {
+    if (!socket.userId) return;
+    io.to(roomId).emit("roomDeleted", { roomId });
+    io.in(roomId).socketsLeave(roomId);
+  });
+
+  // ── KICK USER FROM ROOM ───────────────────────────────────
+  socket.on("kickUser", ({ roomId, userId }) => {
+    if (!socket.userId) return;
+    for (const [sid, info] of onlineUsers.entries()) {
+      if (info.userId === userId) {
+        const target = io.sockets.sockets.get(sid);
+        if (target) {
+          target.leave(roomId);
+          target.emit("kicked", { roomId, by: socket.userName });
+        }
+      }
     }
   });
 

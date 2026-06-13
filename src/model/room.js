@@ -6,6 +6,7 @@ const roomSchema = new Schema({
   emoji: { type: String, default: '#' },
   creator: { type: Schema.Types.ObjectId, ref: 'Chatting-User' },
   isDefault: { type: Boolean, default: false },
+  blockedUsers: [{ type: Schema.Types.ObjectId, ref: 'Chatting-User' }],
 }, { timestamps: true });
 
 export default model('Room', roomSchema);
