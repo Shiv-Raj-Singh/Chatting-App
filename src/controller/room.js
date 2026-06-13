@@ -11,7 +11,7 @@ export const getRooms = catchAsync(async (req, res) => {
 });
 
 export const createRoom = catchAsync(async (req, res, next) => {
-  const { name, description, emoji } = req.body;
+  const { name, description, emoji, maxMembers } = req.body;
   if (!name?.trim()) return next(new AppError('Room name is required', 400));
 
   const existing = await Room.findOne({ name: name.trim().toLowerCase() });
@@ -22,6 +22,7 @@ export const createRoom = catchAsync(async (req, res, next) => {
     description: description?.trim() || '',
     emoji: emoji || '#',
     creator: req.user.userId,
+    maxMembers: maxMembers ? parseInt(maxMembers, 10) : null,
   });
 
   await room.populate('creator', 'name _id');
@@ -65,6 +66,14 @@ export const blockUser = catchAsync(async (req, res, next) => {
 
   await room.save();
   res.status(200).json({ status: true, message: unblock ? 'User unblocked' : 'User removed from room' });
+});
+
+export const purgeCustomRooms = catchAsync(async (req, res) => {
+  const defaultRooms = await Room.find({ isDefault: true }).select('_id');
+  const defaultIds = defaultRooms.map((r) => r._id);
+  await Message.deleteMany({ room: { $nin: defaultIds } });
+  const { deletedCount } = await Room.deleteMany({ isDefault: { $ne: true } });
+  res.status(200).json({ status: true, message: `Purged ${deletedCount} custom rooms and their messages` });
 });
 
 export const getRoomMessages = catchAsync(async (req, res) => {

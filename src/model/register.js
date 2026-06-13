@@ -19,6 +19,7 @@ const userSchema = new Schema(
       default: () => AVATAR_COLORS[Math.floor(Math.random() * AVATAR_COLORS.length)],
     },
     lastSeen: { type: Date, default: Date.now },
+    isBot: { type: Boolean, default: false },
   },
   { timestamps: true }
 );

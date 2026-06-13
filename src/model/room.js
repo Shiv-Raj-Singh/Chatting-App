@@ -7,6 +7,7 @@ const roomSchema = new Schema({
   creator: { type: Schema.Types.ObjectId, ref: 'Chatting-User' },
   isDefault: { type: Boolean, default: false },
   blockedUsers: [{ type: Schema.Types.ObjectId, ref: 'Chatting-User' }],
+  maxMembers: { type: Number, default: null }, // null = unlimited
 }, { timestamps: true });
 
 export default model('Room', roomSchema);
