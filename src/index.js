@@ -1,94 +1,135 @@
 import dotenv from "dotenv";
 dotenv.config();
-import express, { Router } from "express";
+import express from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
+import http from "http";
+import { Server } from "socket.io";
 import "./database.js";
 import { globalError } from "./middleware/globalError.js";
 import router from "./route.js";
+import { verifyJwtToken } from "./utility.js";
+import userModel from "./model/register.js";
+import Room from "./model/room.js";
+import Message from "./model/message.js";
+
 const app = express();
-// Use cookie-parser middleware
+const server = http.createServer(app);
+
+const corsOptions = {
+  origin: "*",
+  methods: ["GET", "POST", "PUT", "DELETE"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+  credentials: true,
+};
+
+app.use(cors(corsOptions));
+app.use(express.json());
 app.use(cookieParser());
 
-import http from "http";
-var server = http.createServer(app);
-// const io = new Server(server);
+const io = new Server(server, { cors: corsOptions });
 
-const corsPolicyFields = {
-  origin: "*", // Replace with your frontend's URL
-  methods: ["GET", "POST", "PUT", "DELETE"], // Allowed methods
-  allowedHeaders: ["Content-Type", "Authorization"], // Allowed headers
-  credentials: true, // Allow cookies to be sent with requests
+const seedDefaultRooms = async () => {
+  const defaults = [
+    { name: "general", description: "General discussion for everyone", emoji: "💬", isDefault: true },
+    { name: "random", description: "Off-topic conversations & fun", emoji: "🎲", isDefault: true },
+    { name: "tech", description: "Tech talk, coding & dev tools", emoji: "💻", isDefault: true },
+  ];
+  for (const room of defaults) {
+    await Room.findOneAndUpdate({ name: room.name }, room, { upsert: true, new: true });
+  }
+  console.log("✅ Default rooms ready");
 };
-app.use(cors(corsPolicyFields));
 
-app.use(express.json());
-
-import { Server } from "socket.io";
-const io = new Server(server, {
-  cors: corsPolicyFields,
-});
-
-// io.on("connection", (socket) => {
-//   // console.log(socket.id)
-
-//   socket.on("joinRoom", (data) => {
-//     // console.log(room);
-//     socket.join(data.room);
-//     socket.broadcast.emit("user-joined", data.room);
-//   });
-
-//   socket.on("newMessage", ({ newMessage, room }) => {
-//     console.log(newMessage, room);
-//     io.in(room).emit("getLatestMessage", newMessage);
-//   });
-// });
-const users = []; // List to store connected users
+// socketId → { userId, name, avatarColor }
+const onlineUsers = new Map();
 
 io.on("connection", (socket) => {
-  console.log("A user connected");
+  // ── AUTHENTICATE ──────────────────────────────────────────
+  socket.on("authenticate", async ({ token }) => {
+    try {
+      const decoded = verifyJwtToken(token);
+      if (!decoded) { socket.emit("authError", { message: "Invalid token" }); return; }
 
-  // Handle user joining chat
-  socket.on("joinDirectChat", ({ username }) => {
-    users.push({ username, socketId: socket.id });
-    io.emit("user-joined", username); // Inform other users
+      const user = await userModel.findById(decoded.userId).select("name avatarColor email").lean();
+      if (!user) { socket.emit("authError", { message: "User not found" }); return; }
 
-    // Emit updated user list after someone joins
-    io.emit(
-      "usersList",
-      users.map((user) => user.username)
-    ); // Send updated users list to all clients
-  });
+      socket.userId = user._id.toString();
+      socket.userName = user.name;
+      socket.avatarColor = user.avatarColor || "#7c3aed";
 
-  // Handle receiving direct messages
-  socket.on("newDirectMessage", (message) => {
-    console.log("Received direct message: ", message);
-    io.emit("getLatestMessage", message);
-  });
+      onlineUsers.set(socket.id, {
+        userId: socket.userId,
+        name: user.name,
+        avatarColor: socket.avatarColor,
+      });
 
-  // Handle users requesting the current list of users
-  socket.on("usersList", () => {
-    io.emit(
-      "usersList",
-      console.log("usersList....", usersList),
-      users.map((user) => user.username)
-    ); // Emit the list of users
-  });
-
-  // Handle user disconnect
-  socket.on("disconnect", () => {
-    const disconnectedUserIndex = users.findIndex(
-      (user) => user.socketId === socket.id
-    );
-    if (disconnectedUserIndex > -1) {
-      users.splice(disconnectedUserIndex, 1); // Remove disconnected user
+      socket.emit("authenticated", { user: { _id: user._id, name: user.name, avatarColor: user.avatarColor } });
+      socket.emit("onlineUsers", Array.from(onlineUsers.values()));
+      socket.broadcast.emit("userOnline", { userId: socket.userId, name: user.name, avatarColor: socket.avatarColor });
+    } catch (err) {
+      socket.emit("authError", { message: "Authentication failed" });
     }
+  });
+
+  // ── JOIN ROOM ─────────────────────────────────────────────
+  socket.on("joinRoom", ({ roomId }) => {
+    if (!socket.userId) return;
+    socket.join(roomId);
+    socket.to(roomId).emit("userJoined", { userId: socket.userId, name: socket.userName, roomId });
+    socket.emit("roomJoined", { roomId });
+  });
+
+  // ── LEAVE ROOM ────────────────────────────────────────────
+  socket.on("leaveRoom", ({ roomId }) => {
+    socket.leave(roomId);
+    socket.to(roomId).emit("userLeft", { userId: socket.userId, name: socket.userName, roomId });
+  });
+
+  // ── SEND MESSAGE ──────────────────────────────────────────
+  socket.on("sendMessage", async ({ roomId, content }) => {
+    if (!socket.userId || !content?.trim()) return;
+    try {
+      const msg = await Message.create({ room: roomId, sender: socket.userId, content: content.trim() });
+      await msg.populate("sender", "name avatarColor");
+
+      io.to(roomId).emit("newMessage", {
+        _id: msg._id,
+        roomId,
+        sender: { _id: msg.sender._id, name: msg.sender.name, avatarColor: msg.sender.avatarColor },
+        content: msg.content,
+        createdAt: msg.createdAt,
+      });
+    } catch (err) {
+      socket.emit("messageError", { message: "Failed to send message" });
+    }
+  });
+
+  // ── TYPING ────────────────────────────────────────────────
+  socket.on("typing", ({ roomId, isTyping }) => {
+    if (!socket.userId) return;
+    socket.to(roomId).emit("typing", {
+      userId: socket.userId,
+      name: socket.userName,
+      roomId,
+      isTyping,
+    });
+  });
+
+  // ── DISCONNECT ────────────────────────────────────────────
+  socket.on("disconnect", () => {
+    if (socket.userId) {
+      socket.broadcast.emit("userOffline", { userId: socket.userId, name: socket.userName });
+    }
+    onlineUsers.delete(socket.id);
   });
 });
 
 app.use("/", router);
 app.use(globalError);
 
-server.listen(process.env.PORT, () => {
-  console.log(`App is Running on ${process.env.PORT}`);
+const PORT = process.env.PORT || 5000;
+server.listen(PORT, async () => {
+  console.log(`🚀 NexChat server running on port ${PORT}`);
+  await seedDefaultRooms();
 });

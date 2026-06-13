@@ -1,44 +1,24 @@
 import { Schema, model } from "mongoose";
 import bcrypt from 'bcrypt'
 
+const AVATAR_COLORS = [
+  '#7c3aed', '#06b6d4', '#ec4899', '#f59e0b',
+  '#10b981', '#3b82f6', '#ef4444', '#8b5cf6',
+];
+
 const userSchema = new Schema(
   {
-    phone: {
+    phone: { type: String, unique: true, sparse: true, trim: true },
+    name: { type: String, trim: true },
+    email: { type: String, unique: true, sparse: true, trim: true, lowercase: true },
+    gender: { type: String, enum: ['male', 'female', 'other'], default: 'male', trim: true },
+    password: { type: String, trim: true },
+    cPassword: { type: String, trim: true },
+    avatarColor: {
       type: String,
-      // required: true,
-      unique: true,
-      trim: true,
+      default: () => AVATAR_COLORS[Math.floor(Math.random() * AVATAR_COLORS.length)],
     },
-
-    name: {
-      type: String,
-      trim: true,
-      // required: true,
-    },
-
-    email: {
-      type: String,
-      // required: true,
-      unique: true,
-      trim: true,
-    },
-    gender: {
-      type: String,
-      // required: true,
-      enum : ['male', 'female', 'other'],
-      default: 'male',
-      trim: true,
-    },
-    password: {
-      type: String,
-      // required: true,
-      trim: true,
-    },
-    cPassword: {
-      type: String,
-      // required: true,
-      trim: true,
-    },
+    lastSeen: { type: Date, default: Date.now },
   },
   { timestamps: true }
 );
