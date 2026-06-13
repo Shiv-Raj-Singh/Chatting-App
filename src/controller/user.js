@@ -127,72 +127,57 @@ export const sendMessage = catchAsync(async (req, res, next) => {
 //    Email send sing NodeMailer**********************************************************************************
 
 const forgetPassword = catchAsync(async (req, res, next) => {
-  console.log(process.env.email, process.env.ePassword);
-  const userData = await validUser.validateAsync(req.body);
-  const user = await userModel.findOne({ email: userData.email });
-  if (!user) return next(new AppError("User Not Exist", 404));
+  const { email } = req.body;
+  if (!email) return next(new AppError("Email is required", 400));
 
-  // res.status(200).json({
-  //     status : true , data : user , message : 'Password Updated Successfully'
-  // })
+  const user = await userModel.findOne({ email });
+  if (!user) return next(new AppError("No account found with that email", 404));
 
-  // Generate test SMTP service account from ethereal.email
-  // Only needed if you don't have a real mail account for testing
+  const frontendUrl = process.env.FRONTEND_URL || "https://mangal-chat-app.vercel.app";
+  const resetLink = `${frontendUrl}/reset-password/${user._id}`;
 
-  const testAccount = await nodemailer.createTestAccount();
-  // create reusable transporter object using the default SMTP transport
   const transporter = nodemailer.createTransport({
     service: "gmail",
     auth: {
-      user: `${process.env.email}`,
-      pass: `${process.env.pass}`,
+      user: process.env.email,
+      pass: process.env.pass,
     },
   });
 
-  var mailOptions = {
-    from: `${process.env.email}`,
-    to: `${userData.email}`,
-    // to: `mt932747@gmail.com`,
-    // to: `shiv9627347143@gmail.com`,
-    // to: `albertsaurabhkumar@gmail.com`,
-    subject: "Reset Your Password",
-    html: '<a href="`https://chat-app-frontend-sigma.vercel.app/reset-password/${user._id}`">Click Here For Reset Your Password ! </a>',
+  const mailOptions = {
+    from: process.env.email,
+    to: email,
+    subject: "Reset Your NexChat Password",
+    html: `
+      <div style="font-family:sans-serif;max-width:480px;margin:auto;padding:32px;background:#0f0f1a;color:#e2e8f0;border-radius:16px;">
+        <h2 style="background:linear-gradient(135deg,#7c3aed,#06b6d4);-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin:0 0 16px">NexChat</h2>
+        <p>You requested a password reset. Click the button below to choose a new password:</p>
+        <a href="${resetLink}" style="display:inline-block;margin:24px 0;padding:14px 28px;background:linear-gradient(135deg,#7c3aed,#06b6d4);color:#fff;text-decoration:none;border-radius:12px;font-weight:600;">Reset Password</a>
+        <p style="color:#94a3b8;font-size:13px;">This link expires in 1 hour. If you didn't request this, ignore this email.</p>
+      </div>
+    `,
   };
 
-  await transporter.sendMail(mailOptions, function (error, info) {
-    if (error) {
-      console.log(error.message);
-    } else {
-      console.log("Email sent: " + info);
-
-      res.status(200).json({
-        status: true,
-        message: "Email Sent Successfully See Your Email Account !",
-        data: info,
-      });
-    }
-  });
-  // console.log(userData);
+  await transporter.sendMail(mailOptions);
+  res.status(200).json({ status: true, message: "Password reset link sent to your email." });
 });
 
 const resetPassword = catchAsync(async (req, res, next) => {
-  const id = req.params.id;
-  const userData = await validUser.validateAsync(req.body);
-  // console.log(id , userData);
-  if (userData.password !== userData.cPassword) {
-    return next(new AppError("Both Password are Not Match !"));
-  }
-  const user = await userModel.findById({ _id: id });
-  if (!user) return next(new AppError("User Not Exist", 404));
+  const { id } = req.params;
+  const { password, cPassword } = req.body;
 
-  user.password = userData.password;
-  user.cPassword = userData.cPassword;
+  if (!password || !cPassword) return next(new AppError("Both password fields are required", 400));
+  if (password !== cPassword) return next(new AppError("Passwords do not match", 400));
+  if (password.length < 8) return next(new AppError("Password must be at least 8 characters", 400));
+
+  const user = await userModel.findById(id);
+  if (!user) return next(new AppError("User not found", 404));
+
+  user.password = password;
+  user.cPassword = cPassword;
   await user.save();
-  res.status(200).json({
-    status: true,
-    data: user,
-    message: "Password Updated Successfully",
-  });
+
+  res.status(200).json({ status: true, message: "Password updated successfully. Please log in." });
 });
 
 // pull latest news
